@@ -1,4 +1,5 @@
 import express from "express"
+import cors from "cors"
 import dotenv from "dotenv"
 import mongoose from "mongoose"
 dotenv.config()
@@ -12,38 +13,35 @@ const connectDb=async () => {
         await mongoose.connect(mongodbUrl)
         console.log("db connected")
     } catch (error) {
-        console.log("db error")
+        console.log("db error", error?.message || error)
     }
 }
 
 const app=express()
+app.use(cors())
 app.use(express.json())
 const server=http.createServer(app)
 
 const io=new Server(server,{
     cors:{
-        origin:process.env.NEXT_BASE_URL
+        origin: process.env.NEXT_BASE_URL ? [process.env.NEXT_BASE_URL, "http://localhost:3000"] : "*",
+        methods: ["GET", "POST"]
     }
 })
 
 
-app.post("/emit", async (req, res) => {
-    const { event, userId, bookingId, data } = req.body
-    try {
-        if (bookingId) {
-            io.to(`ride-${bookingId}`).emit(event, data)
-        }
-        if (userId) {
-            const user = await User.findById(userId)
-            if (user && user.socketId) {
-                io.to(user.socketId).emit(event, data)
-            }
-        }
-        return res.json({ success: true })
-    } catch (error) {
-        console.error("Socket emit error:", error)
-        return res.json({ success: false })
+app.post("/emit",async (req,res)=>{
+const {event,userId,data}=req.body
+try {
+    const user=await User.findById(userId)
+    if(user.socketId){
+io.to(user.socketId).emit(event,data)
     }
+    
+    return res.json({success:true})
+} catch (error) {
+    return res.json({success:false})
+}
 })
 
 io.on("connection",(socket)=>{
