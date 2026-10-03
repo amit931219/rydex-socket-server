@@ -22,26 +22,34 @@ app.use(cors())
 app.use(express.json())
 const server=http.createServer(app)
 
-const io=new Server(server,{
-    cors:{
-        origin: process.env.NEXT_BASE_URL ? [process.env.NEXT_BASE_URL, "http://localhost:3000"] : "*",
-        methods: ["GET", "POST"]
+const allowedOrigins = [
+    "http://localhost:3000",
+    "https://rydex-tau.vercel.app",
+    "https://rydex.vercel.app"
+]
+if (process.env.NEXT_BASE_URL && !allowedOrigins.includes(process.env.NEXT_BASE_URL)) {
+    allowedOrigins.push(process.env.NEXT_BASE_URL)
+}
+
+const io = new Server(server, {
+    cors: {
+        origin: allowedOrigins,
+        methods: ["GET", "POST"],
+        credentials: true
     }
 })
 
-
-app.post("/emit",async (req,res)=>{
-const {event,userId,data}=req.body
-try {
-    const user=await User.findById(userId)
-    if(user.socketId){
-io.to(user.socketId).emit(event,data)
+app.post("/emit", async (req, res) => {
+    const { event, userId, data } = req.body
+    try {
+        const user = await User.findById(userId)
+        if (user && user.socketId) {
+            io.to(user.socketId).emit(event, data)
+        }
+        return res.json({ success: true })
+    } catch (error) {
+        return res.json({ success: false })
     }
-    
-    return res.json({success:true})
-} catch (error) {
-    return res.json({success:false})
-}
 })
 
 io.on("connection",(socket)=>{
