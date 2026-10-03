@@ -40,6 +40,15 @@ const io = new Server(server, {
 })
 
 app.post("/emit", async (req, res) => {
+    // Secret protection for internal service calls
+    const internalSecret = process.env.INTERNAL_SOCKET_SECRET
+    if (internalSecret) {
+        const providedSecret = req.headers["x-internal-secret"]
+        if (providedSecret !== internalSecret) {
+            return res.status(403).json({ success: false, message: "Forbidden: Invalid internal secret" })
+        }
+    }
+
     const { event, userId, data } = req.body
     try {
         const user = await User.findById(userId)
